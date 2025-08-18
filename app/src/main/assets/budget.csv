@@ -1,0 +1,22 @@
+id,name,category,cost,
+1, decorating,	,1500
+2, fitted wardrobes	,,7500
+3, carpets,	,7500
+4, New, kitchen,10000
+5, doors,kitchen,2500
+6,oven,kitchen,500
+7,new,bathroom,10000
+8,double glazing	,,15000
+9,rewire,electrics,10000
+10.alterations,electrics,2000
+11,boiler,heating,7000
+12,full system,heating,12000
+13,repair,roof,5000
+14,new,roof,15000
+15.garage	,general,10000
+16,workshop	,general,10000
+17,greenhouse	,general,6000
+18,conservatory	,general,9000
+19,septic tank	,general,25000
+20,bore hole	,general,30000
+21,air conditioning 	,general,3000

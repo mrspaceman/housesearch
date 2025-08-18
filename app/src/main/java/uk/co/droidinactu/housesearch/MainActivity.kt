@@ -1,5 +1,7 @@
 package uk.co.droidinactu.housesearch
 
+import android.content.Context
+import android.graphics.*
 import android.os.Bundle
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -16,6 +18,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.graphics.drawable.toDrawable
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import org.osmdroid.config.Configuration
@@ -25,6 +28,7 @@ import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 import uk.co.droidinactu.housesearch.model.Property
 import uk.co.droidinactu.housesearch.ui.theme.HouseSearchTheme
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -108,6 +112,13 @@ fun PropertiesScreen(vm: MainViewModel) {
                         Text(text = prop.name, style = MaterialTheme.typography.titleMedium)
                         Text(text = "Price: " + (prop.price?.toString() ?: "N/A"))
                         Text(text = "Category: " + (prop.category ?: ""))
+                        if (prop.rightmoveNumber != null) {
+                            Text(text = "Site: Rightmove")
+                        } else if (prop.zooplaNumber != null) {
+                            Text(text = "Site: Zoopla")
+                        } else if (prop.onthemarketNumber != null) {
+                            Text(text = "Site: OnTheMarket")
+                        }
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -236,44 +247,95 @@ fun MapScreen(vm: MainViewModel) {
 
             // Add markers
             overlays.clear()
-            properties.filter { it.latitude != null && it.longitude != null }.forEach { p ->
-                val marker = Marker(this)
-                marker.position = GeoPoint(p.latitude!!, p.longitude!!)
-                marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                marker.title = p.name
-                overlays.add(marker)
-            }
+            properties.filter { it.latitude != null && it.longitude != null && it.category != "discounted" }
+                .forEach { p ->
+                    val marker = Marker(this)
+                    marker.position = GeoPoint(p.latitude!!, p.longitude!!)
+                    marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                    marker.setTextIcon("${p.id}")
+                    marker.title = "${p.name}"
+                    overlays.add(marker)
+                }
         }
     }, update = { map ->
         // Update overlays when properties change
         map.overlays.removeAll { it is Marker }
-        properties.filter { it.latitude != null && it.longitude != null }.forEach { p ->
+        properties.filter { it.latitude != null && it.longitude != null && it.category != "discounted" }.forEach { p ->
+            val markerBitmap =
+                drawTextToBitmap(context, R.drawable.mapmarker1, "${p.id}")
+                    .toDrawable(context.getResources())
+
             val marker = Marker(map)
             marker.position = GeoPoint(p.latitude!!, p.longitude!!)
             marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-            marker.title = p.name
+            marker.setIcon(markerBitmap)
+            marker.title = "${p.name}"
             map.overlays.add(marker)
         }
         map.invalidate()
     }, modifier = Modifier.fillMaxSize())
 }
 
+fun drawTextToBitmap(
+    gContext: Context,
+    gResId: Int,
+    gText: String
+): Bitmap {
+    val resources = gContext.getResources()
+    val scale = resources.getDisplayMetrics().density
+    var bitmap: Bitmap =
+        BitmapFactory.decodeResource(resources, gResId)
+
+    var bitmapConfig =
+        bitmap.getConfig()
+    // set default bitmap config if none
+    if (bitmapConfig == null) {
+        bitmapConfig = Bitmap.Config.ARGB_8888
+    }
+    // resource bitmaps are immutable,
+    // so we need to convert it to mutable one
+    bitmap = bitmap.copy(bitmapConfig, true)
+
+    val canvas: Canvas = Canvas(bitmap)
+    // new antialised Paint
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    // text color - #3D3D3D
+    paint.setColor(Color.rgb(61, 61, 61))
+    // text size in pixels
+    paint.setTextSize((14 * scale).toInt().toFloat())
+    // text shadow
+    paint.setShadowLayer(1f, 0f, 1f, Color.WHITE)
+
+    // draw text to the Canvas center
+    val bounds: Rect = Rect()
+    paint.getTextBounds(gText, 0, gText.length, bounds)
+    val x: Float = ((bitmap.getWidth() - bounds.width()) / 2).toFloat()
+    val y: Float = ((bitmap.getHeight() + bounds.height()) / 2).toFloat()
+
+    canvas.drawText(gText, x, y, paint)
+
+    return bitmap
+}
+
 @Composable
 fun BudgetScreen(vm: MainViewModel) {
     Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {
         Text("Budget Checklist", style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(2.dp))
         LazyColumn(modifier = Modifier.weight(1f)) {
             items(vm.budgetItems) { item ->
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
                 ) {
                     Checkbox(
                         checked = vm.checkedBudgetIds.contains(item.id),
                         onCheckedChange = { vm.toggleBudgetChecked(item.id) })
-                    Column(Modifier.padding(start = 8.dp)) {
+                    Row(Modifier.padding(start = 2.dp)) {
+                        Text(item.category ?: "General")
+                        Text(" : ")
                         Text(item.name)
+                        Text(" : ")
                         Text("Cost: ${item.cost}")
                     }
                 }
@@ -287,18 +349,19 @@ fun BudgetScreen(vm: MainViewModel) {
 fun RequiredScreen(vm: MainViewModel) {
     Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {
         Text("Required Features", style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(2.dp))
         LazyColumn(modifier = Modifier.fillMaxSize()) {
             items(vm.requiredItems) { item ->
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
                 ) {
                     Checkbox(
                         checked = vm.checkedRequiredIds.contains(item.id),
                         onCheckedChange = { vm.toggleRequiredChecked(item.id) })
-                    Column(Modifier.padding(start = 8.dp)) {
+                    Row(Modifier.padding(start = 2.dp)) {
                         Text(item.name)
+                        Text(" : ")
                         Text("Priority: ${item.priority}")
                     }
                 }

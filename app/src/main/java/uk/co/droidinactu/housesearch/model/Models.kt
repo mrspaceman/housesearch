@@ -30,6 +30,13 @@ data class RequiredFeature(
     val priority: Int = 0,
 )
 
+data class FavoritePlace(
+    val id: Long,
+    val name: String,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+)
+
 // Additional helper class to satisfy requirement of marking properties without altering Property definition
 // This keeps statuses separate from the Property fields listed in Requirements.md
 
